@@ -72,9 +72,21 @@ const (
 	ComponentPropertyRDate           = ComponentProperty(PropertyRdate)
 )
 
+// requiredCandidates is the closed set of ComponentProperty values Validate
+// inspects. Every ComponentProperty mentioned in ComponentProperty.Required's
+// outer switch must appear here, or Validate will silently miss it.
+var requiredCandidates = []ComponentProperty{
+	ComponentPropertyDtstamp,
+	ComponentPropertyUniqueId,
+	ComponentPropertyDtStart,
+}
+
 // Required returns the rules from the RFC as to if they are required or not for any particular component type
 // If unspecified or incomplete, it returns false. -- This list is incomplete verify source. Happy to take PRs with reference
 // iana-prop and x-props are not covered as it would always be true and require an exhaustive list.
+//
+// When adding a ComponentProperty arm here, also add it to requiredCandidates
+// or Calendar.Validate / ComponentBase.Validate will not check it.
 func (cp ComponentProperty) Required(c Component) bool {
 	// https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1
 	switch cp {
@@ -447,6 +459,18 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 	}
 	_, _ = io.WriteString(w, "END:VCALENDAR"+serializeConfig.NewLine)
 	return nil
+}
+
+// Validate walks cal.Components (and their subcomponents) and reports every
+// RFC 5545 required property that is missing, aggregated via errors.Join.
+// Serialize does not call Validate; callers that want RFC enforcement must
+// invoke Validate explicitly before serialising.
+func (cal *Calendar) Validate() error {
+	errs := make([]error, 0, len(cal.Components))
+	for _, c := range cal.Components {
+		errs = append(errs, Validate(c))
+	}
+	return errors.Join(errs...)
 }
 
 type SerializationConfiguration struct {

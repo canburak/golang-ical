@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -167,6 +168,68 @@ func (cb *ComponentBase) RemovePropertyByValue(removeProp ComponentProperty, val
 	return cb.RemovePropertyByFunc(removeProp, func(p IANAProperty) bool {
 		return p.Value == value
 	})
+}
+
+// Validate reports the RFC 5545 required properties that are missing from c
+// and its subcomponents, as determined by ComponentProperty.Required. It
+// walks c via the Component interface, so every implementer is covered.
+func Validate(c Component) error {
+	if c == nil {
+		return nil
+	}
+	// Typed-nil pointers (e.g. (*VEvent)(nil)) compare != nil through an
+	// interface; reflect is how we detect them without panicking on the
+	// method calls below.
+	if v := reflect.ValueOf(c); v.Kind() == reflect.Ptr && v.IsNil() {
+		return nil
+	}
+	props := c.UnknownPropertiesIANAProperties()
+	prefix := componentTypeName(c)
+	present := make(map[ComponentProperty]bool, len(props))
+	for _, p := range props {
+		present[ComponentProperty(p.IANAToken)] = true
+		if p.IANAToken == string(ComponentPropertyUniqueId) {
+			prefix = fmt.Sprintf("%s (uid=%s)", prefix, p.Value)
+		}
+	}
+	var errs []error
+	for _, cp := range requiredCandidates {
+		if cp.Required(c) && !present[cp] {
+			errs = append(errs, fmt.Errorf("%s: missing required property %s", prefix, cp))
+		}
+	}
+	for _, sub := range c.SubComponents() {
+		errs = append(errs, Validate(sub))
+	}
+	return errors.Join(errs...)
+}
+
+func componentTypeName(c Component) string {
+	switch c := c.(type) {
+	case *VEvent:
+		return string(ComponentVEvent)
+	case *VTodo:
+		return string(ComponentVTodo)
+	case *VJournal:
+		return string(ComponentVJournal)
+	case *VBusy:
+		// Go type is VBusy; iCal token is VFREEBUSY.
+		return string(ComponentVFreeBusy)
+	case *VTimezone:
+		return string(ComponentVTimezone)
+	case *VAlarm:
+		return string(ComponentVAlarm)
+	case *Standard:
+		return string(ComponentStandard)
+	case *Daylight:
+		return string(ComponentDaylight)
+	case *GeneralComponent:
+		if c.Token != "" {
+			return c.Token
+		}
+		// empty Token falls through to the %T default below
+	}
+	return fmt.Sprintf("%T", c)
 }
 
 // RemovePropertyByFunc removes from the component all properties that has a particular property type and the function
