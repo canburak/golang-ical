@@ -169,35 +169,55 @@ func (cb *ComponentBase) RemovePropertyByValue(removeProp ComponentProperty, val
 	})
 }
 
-// Validate reports the RFC 5545 required properties that are missing from c,
-// using ComponentProperty.Required to decide what counts as required for the
-// concrete component type. It returns nil when nothing is missing; otherwise
-// the returned error joins one entry per missing property (errors.Join).
+// Validate reports the RFC 5545 required properties that are missing from c
+// (and any of its subcomponents), using ComponentProperty.Required to decide
+// what counts as required for each concrete component type. It returns nil
+// when nothing is missing; otherwise the returned error joins one entry per
+// missing property via errors.Join.
 //
 // c must be the concrete Component that embeds cb so that Required can perform
 // its type switch. Serialize does not call Validate; callers that want RFC
 // enforcement should invoke Validate explicitly before serialising.
 func (cb *ComponentBase) Validate(c Component) error {
-	name := componentTypeName(c)
-	id := ""
-	if p := cb.GetProperty(ComponentPropertyUniqueId); p != nil {
-		id = fmt.Sprintf(" (uid=%s)", p.Value)
+	return validateComponent(c)
+}
+
+// validateComponent walks c and its subcomponents using only the Component
+// interface, so it works for every implementer — including *GeneralComponent
+// and any third-party type — without a type-switch tax on the property side.
+func validateComponent(c Component) error {
+	props := c.UnknownPropertiesIANAProperties()
+	prefix := componentTypeName(c)
+	for _, p := range props {
+		if p.IANAToken == string(ComponentPropertyUniqueId) {
+			prefix = fmt.Sprintf("%s (uid=%s)", prefix, p.Value)
+			break
+		}
+	}
+	has := func(cp ComponentProperty) bool {
+		for _, p := range props {
+			if p.IANAToken == string(cp) {
+				return true
+			}
+		}
+		return false
 	}
 	var errs []error
 	for _, cp := range requiredCandidates {
-		if !cp.Required(c) {
-			continue
+		if cp.Required(c) && !has(cp) {
+			errs = append(errs, fmt.Errorf("%s: missing required property %s", prefix, cp))
 		}
-		if cb.HasProperty(cp) {
-			continue
+	}
+	for _, sub := range c.SubComponents() {
+		if err := validateComponent(sub); err != nil {
+			errs = append(errs, err)
 		}
-		errs = append(errs, fmt.Errorf("%s%s: missing required property %s", name, id, cp))
 	}
 	return errors.Join(errs...)
 }
 
 func componentTypeName(c Component) string {
-	switch c.(type) {
+	switch c := c.(type) {
 	case *VEvent:
 		return string(ComponentVEvent)
 	case *VTodo:
@@ -205,6 +225,7 @@ func componentTypeName(c Component) string {
 	case *VJournal:
 		return string(ComponentVJournal)
 	case *VBusy:
+		// Go type is VBusy; iCal token is VFREEBUSY.
 		return string(ComponentVFreeBusy)
 	case *VTimezone:
 		return string(ComponentVTimezone)
@@ -214,6 +235,8 @@ func componentTypeName(c Component) string {
 		return string(ComponentStandard)
 	case *Daylight:
 		return string(ComponentDaylight)
+	case *GeneralComponent:
+		return c.Token
 	default:
 		return fmt.Sprintf("%T", c)
 	}

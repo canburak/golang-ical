@@ -458,44 +458,20 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 	return nil
 }
 
-// Validate walks cal.Components and reports every RFC 5545 required property
-// that is missing, as determined by ComponentProperty.Required. It returns nil
-// when every component carries its required properties; otherwise the returned
-// error joins one entry per violation (errors.Join). Serialize does not call
-// Validate, so callers that want RFC enforcement should invoke Validate before
-// SerializeTo.
+// Validate walks cal.Components (and their subcomponents) and reports every
+// RFC 5545 required property that is missing, as determined by
+// ComponentProperty.Required. It returns nil when every component carries its
+// required properties; otherwise the returned error joins one entry per
+// violation via errors.Join. Serialize does not call Validate, so callers
+// that want RFC enforcement should invoke Validate before SerializeTo.
 func (cal *Calendar) Validate() error {
 	var errs []error
 	for _, c := range cal.Components {
-		if cb := componentBaseOf(c); cb != nil {
-			if err := cb.Validate(c); err != nil {
-				errs = append(errs, err)
-			}
+		if err := validateComponent(c); err != nil {
+			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
-}
-
-func componentBaseOf(c Component) *ComponentBase {
-	switch c := c.(type) {
-	case *VEvent:
-		return &c.ComponentBase
-	case *VTodo:
-		return &c.ComponentBase
-	case *VJournal:
-		return &c.ComponentBase
-	case *VBusy:
-		return &c.ComponentBase
-	case *VTimezone:
-		return &c.ComponentBase
-	case *VAlarm:
-		return &c.ComponentBase
-	case *Standard:
-		return &c.ComponentBase
-	case *Daylight:
-		return &c.ComponentBase
-	}
-	return nil
 }
 
 type SerializationConfiguration struct {

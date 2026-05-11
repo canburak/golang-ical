@@ -79,3 +79,68 @@ func TestComponentBaseValidate_DirectCall(t *testing.T) {
 		t.Errorf("error should mention DTSTAMP, got: %q", err.Error())
 	}
 }
+
+func TestCalendarValidate_NilComponents(t *testing.T) {
+	cal := &Calendar{}
+	if err := cal.Validate(); err != nil {
+		t.Fatalf("calendar with nil Components should validate, got: %v", err)
+	}
+}
+
+// TestCalendarValidate_AggregatesAllMisses pins the errors.Join behaviour:
+// one entry per missing property, separated by newlines.
+func TestCalendarValidate_AggregatesAllMisses(t *testing.T) {
+	cal := NewCalendar()
+	cal.Components = append(cal.Components, &VEvent{})
+	err := cal.Validate()
+	if err == nil {
+		t.Fatal("expected error for VEVENT missing UID, DTSTAMP, and DTSTART")
+	}
+	msg := err.Error()
+	for _, want := range []string{"UID", "DTSTAMP", "DTSTART"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error should mention %s; got: %q", want, msg)
+		}
+	}
+	if got := strings.Count(msg, "\n"); got < 2 {
+		t.Errorf("expected at least two newlines from errors.Join across three misses, got %d in: %q", got, msg)
+	}
+}
+
+// TestCalendarValidate_RecursesIntoSubcomponents verifies that a VEVENT
+// nested inside another VEVENT is also checked. Required() flags DTSTAMP on
+// every *VEvent, so the inner one's miss must surface.
+func TestCalendarValidate_RecursesIntoSubcomponents(t *testing.T) {
+	cal := NewCalendar()
+	outer := NewEvent("outer")
+	outer.SetProperty(ComponentPropertyDtstamp, "20240101T000000Z")
+	outer.SetProperty(ComponentPropertyDtStart, "20240101T010000Z")
+	inner := NewEvent("inner-missing-dtstamp")
+	inner.SetProperty(ComponentPropertyMethod, "PUBLISH") // suppress DTSTART requirement
+	outer.Components = append(outer.Components, inner)
+	cal.Components = append(cal.Components, outer)
+
+	err := cal.Validate()
+	if err == nil {
+		t.Fatal("expected error from inner VEVENT missing DTSTAMP")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "uid=inner-missing-dtstamp") {
+		t.Errorf("error should identify the inner component by uid, got: %q", msg)
+	}
+	if !strings.Contains(msg, "DTSTAMP") {
+		t.Errorf("error should mention DTSTAMP, got: %q", msg)
+	}
+}
+
+// TestCalendarValidate_GeneralComponent confirms that components the package
+// doesn't model explicitly (parsed as *GeneralComponent) are walked rather
+// than silently skipped. Required() returns false for them today, so the
+// expectation is "no error, no panic."
+func TestCalendarValidate_GeneralComponent(t *testing.T) {
+	cal := NewCalendar()
+	cal.Components = append(cal.Components, &GeneralComponent{Token: "X-VENDOR"})
+	if err := cal.Validate(); err != nil {
+		t.Fatalf("unknown component types should not produce errors today, got: %v", err)
+	}
+}
