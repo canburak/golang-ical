@@ -468,7 +468,7 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 func (cal *Calendar) Validate() error {
 	errs := make([]error, 0, len(cal.Components))
 	for _, c := range cal.Components {
-		errs = append(errs, validateComponent(c))
+		errs = append(errs, Validate(c))
 	}
 	return errors.Join(errs...)
 }
