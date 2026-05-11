@@ -171,14 +171,8 @@ func (cb *ComponentBase) RemovePropertyByValue(removeProp ComponentProperty, val
 }
 
 // Validate reports the RFC 5545 required properties that are missing from c
-// (and any of its subcomponents), using ComponentProperty.Required to decide
-// what counts as required for each concrete component type. It returns nil
-// when nothing is missing; otherwise the returned error joins one entry per
-// missing property via errors.Join.
-//
-// c must be the concrete Component that embeds cb so that Required can perform
-// its type switch. Serialize does not call Validate; callers that want RFC
-// enforcement should invoke Validate explicitly before serialising.
+// and its subcomponents, as determined by ComponentProperty.Required. c must
+// be the concrete Component that embeds cb so Required's type switch can fire.
 func (cb *ComponentBase) Validate(c Component) error {
 	return validateComponent(c)
 }

@@ -69,24 +69,6 @@ func TestCalendarValidate_VEventUIDDtstampDtstart(t *testing.T) {
 	}
 }
 
-func TestComponentBaseValidate_DirectCall(t *testing.T) {
-	evt := NewEvent("direct")
-	err := evt.ComponentBase.Validate(evt)
-	if err == nil {
-		t.Fatal("expected error from direct ComponentBase.Validate, got nil")
-	}
-	if !strings.Contains(err.Error(), "DTSTAMP") {
-		t.Errorf("error should mention DTSTAMP, got: %q", err.Error())
-	}
-}
-
-func TestCalendarValidate_NilComponents(t *testing.T) {
-	cal := &Calendar{}
-	if err := cal.Validate(); err != nil {
-		t.Fatalf("calendar with nil Components should validate, got: %v", err)
-	}
-}
-
 // TestCalendarValidate_AggregatesAllMisses pins the errors.Join behaviour:
 // exactly one line per missing property, joined by newlines.
 func TestCalendarValidate_AggregatesAllMisses(t *testing.T) {

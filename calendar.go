@@ -462,11 +462,9 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 }
 
 // Validate walks cal.Components (and their subcomponents) and reports every
-// RFC 5545 required property that is missing, as determined by
-// ComponentProperty.Required. It returns nil when every component carries its
-// required properties; otherwise the returned error joins one entry per
-// violation via errors.Join. Serialize does not call Validate, so callers
-// that want RFC enforcement should invoke Validate before SerializeTo.
+// RFC 5545 required property that is missing, aggregated via errors.Join.
+// Serialize does not call Validate; callers that want RFC enforcement must
+// invoke Validate explicitly before serialising.
 func (cal *Calendar) Validate() error {
 	var errs []error
 	for _, c := range cal.Components {
