@@ -169,6 +169,56 @@ func (cb *ComponentBase) RemovePropertyByValue(removeProp ComponentProperty, val
 	})
 }
 
+// Validate reports the RFC 5545 required properties that are missing from c,
+// using ComponentProperty.Required to decide what counts as required for the
+// concrete component type. It returns nil when nothing is missing; otherwise
+// the returned error joins one entry per missing property (errors.Join).
+//
+// c must be the concrete Component that embeds cb so that Required can perform
+// its type switch. Serialize does not call Validate; callers that want RFC
+// enforcement should invoke Validate explicitly before serialising.
+func (cb *ComponentBase) Validate(c Component) error {
+	name := componentTypeName(c)
+	id := ""
+	if p := cb.GetProperty(ComponentPropertyUniqueId); p != nil {
+		id = fmt.Sprintf(" (uid=%s)", p.Value)
+	}
+	var errs []error
+	for _, cp := range requiredCandidates {
+		if !cp.Required(c) {
+			continue
+		}
+		if cb.HasProperty(cp) {
+			continue
+		}
+		errs = append(errs, fmt.Errorf("%s%s: missing required property %s", name, id, cp))
+	}
+	return errors.Join(errs...)
+}
+
+func componentTypeName(c Component) string {
+	switch c.(type) {
+	case *VEvent:
+		return string(ComponentVEvent)
+	case *VTodo:
+		return string(ComponentVTodo)
+	case *VJournal:
+		return string(ComponentVJournal)
+	case *VBusy:
+		return string(ComponentVFreeBusy)
+	case *VTimezone:
+		return string(ComponentVTimezone)
+	case *VAlarm:
+		return string(ComponentVAlarm)
+	case *Standard:
+		return string(ComponentStandard)
+	case *Daylight:
+		return string(ComponentDaylight)
+	default:
+		return fmt.Sprintf("%T", c)
+	}
+}
+
 // RemovePropertyByFunc removes from the component all properties that has a particular property type and the function
 // remove returns true for
 func (cb *ComponentBase) RemovePropertyByFunc(removeProp ComponentProperty, remove func(p IANAProperty) bool) []IANAProperty {

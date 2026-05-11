@@ -72,6 +72,15 @@ const (
 	ComponentPropertyRDate           = ComponentProperty(PropertyRdate)
 )
 
+// requiredCandidates lists every ComponentProperty that ComponentProperty.Required
+// may currently flag as required for some Component. ComponentBase.Validate
+// iterates this slice; extend it in lock-step with Required.
+var requiredCandidates = []ComponentProperty{
+	ComponentPropertyDtstamp,
+	ComponentPropertyUniqueId,
+	ComponentPropertyDtStart,
+}
+
 // Required returns the rules from the RFC as to if they are required or not for any particular component type
 // If unspecified or incomplete, it returns false. -- This list is incomplete verify source. Happy to take PRs with reference
 // iana-prop and x-props are not covered as it would always be true and require an exhaustive list.
@@ -446,6 +455,46 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 		}
 	}
 	_, _ = io.WriteString(w, "END:VCALENDAR"+serializeConfig.NewLine)
+	return nil
+}
+
+// Validate walks cal.Components and reports every RFC 5545 required property
+// that is missing, as determined by ComponentProperty.Required. It returns nil
+// when every component carries its required properties; otherwise the returned
+// error joins one entry per violation (errors.Join). Serialize does not call
+// Validate, so callers that want RFC enforcement should invoke Validate before
+// SerializeTo.
+func (cal *Calendar) Validate() error {
+	var errs []error
+	for _, c := range cal.Components {
+		if cb := componentBaseOf(c); cb != nil {
+			if err := cb.Validate(c); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func componentBaseOf(c Component) *ComponentBase {
+	switch c := c.(type) {
+	case *VEvent:
+		return &c.ComponentBase
+	case *VTodo:
+		return &c.ComponentBase
+	case *VJournal:
+		return &c.ComponentBase
+	case *VBusy:
+		return &c.ComponentBase
+	case *VTimezone:
+		return &c.ComponentBase
+	case *VAlarm:
+		return &c.ComponentBase
+	case *Standard:
+		return &c.ComponentBase
+	case *Daylight:
+		return &c.ComponentBase
+	}
 	return nil
 }
 
