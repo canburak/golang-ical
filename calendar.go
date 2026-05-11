@@ -72,9 +72,9 @@ const (
 	ComponentPropertyRDate           = ComponentProperty(PropertyRdate)
 )
 
-// requiredCandidates lists every ComponentProperty that ComponentProperty.Required
-// may currently flag as required for some Component. ComponentBase.Validate
-// iterates this slice; extend it in lock-step with Required.
+// requiredCandidates is the closed set of ComponentProperty values Validate
+// inspects. Every ComponentProperty mentioned in ComponentProperty.Required's
+// outer switch must appear here, or Validate will silently miss it.
 var requiredCandidates = []ComponentProperty{
 	ComponentPropertyDtstamp,
 	ComponentPropertyUniqueId,
@@ -84,6 +84,9 @@ var requiredCandidates = []ComponentProperty{
 // Required returns the rules from the RFC as to if they are required or not for any particular component type
 // If unspecified or incomplete, it returns false. -- This list is incomplete verify source. Happy to take PRs with reference
 // iana-prop and x-props are not covered as it would always be true and require an exhaustive list.
+//
+// When adding a ComponentProperty arm here, also add it to requiredCandidates
+// or Calendar.Validate / ComponentBase.Validate will not check it.
 func (cp ComponentProperty) Required(c Component) bool {
 	// https://www.rfc-editor.org/rfc/rfc5545#section-3.6.1
 	switch cp {

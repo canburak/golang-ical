@@ -88,7 +88,7 @@ func TestCalendarValidate_NilComponents(t *testing.T) {
 }
 
 // TestCalendarValidate_AggregatesAllMisses pins the errors.Join behaviour:
-// one entry per missing property, separated by newlines.
+// exactly one line per missing property, joined by newlines.
 func TestCalendarValidate_AggregatesAllMisses(t *testing.T) {
 	cal := NewCalendar()
 	cal.Components = append(cal.Components, &VEvent{})
@@ -97,13 +97,23 @@ func TestCalendarValidate_AggregatesAllMisses(t *testing.T) {
 		t.Fatal("expected error for VEVENT missing UID, DTSTAMP, and DTSTART")
 	}
 	msg := err.Error()
+	lines := strings.Split(msg, "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected exactly 3 joined error lines, got %d: %q", len(lines), msg)
+	}
 	for _, want := range []string{"UID", "DTSTAMP", "DTSTART"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("error should mention %s; got: %q", want, msg)
 		}
 	}
-	if got := strings.Count(msg, "\n"); got < 2 {
-		t.Errorf("expected at least two newlines from errors.Join across three misses, got %d in: %q", got, msg)
+}
+
+func TestCalendarValidate_NilAndTypedNilComponents(t *testing.T) {
+	cal := NewCalendar()
+	var typedNil *VEvent
+	cal.Components = append(cal.Components, nil, typedNil)
+	if err := cal.Validate(); err != nil {
+		t.Fatalf("nil and typed-nil component entries should be skipped, got: %v", err)
 	}
 }
 

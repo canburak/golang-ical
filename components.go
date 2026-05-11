@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -185,26 +186,26 @@ func (cb *ComponentBase) Validate(c Component) error {
 // validateComponent walks c and its subcomponents using only the Component
 // interface, so it works for every implementer — including *GeneralComponent
 // and any third-party type — without a type-switch tax on the property side.
+// Nil interface values and typed-nil pointers are skipped silently.
 func validateComponent(c Component) error {
+	if c == nil {
+		return nil
+	}
+	if v := reflect.ValueOf(c); v.Kind() == reflect.Ptr && v.IsNil() {
+		return nil
+	}
 	props := c.UnknownPropertiesIANAProperties()
 	prefix := componentTypeName(c)
+	present := make(map[ComponentProperty]bool, len(props))
 	for _, p := range props {
+		present[ComponentProperty(p.IANAToken)] = true
 		if p.IANAToken == string(ComponentPropertyUniqueId) {
 			prefix = fmt.Sprintf("%s (uid=%s)", prefix, p.Value)
-			break
 		}
-	}
-	has := func(cp ComponentProperty) bool {
-		for _, p := range props {
-			if p.IANAToken == string(cp) {
-				return true
-			}
-		}
-		return false
 	}
 	var errs []error
 	for _, cp := range requiredCandidates {
-		if cp.Required(c) && !has(cp) {
+		if cp.Required(c) && !present[cp] {
 			errs = append(errs, fmt.Errorf("%s: missing required property %s", prefix, cp))
 		}
 	}
@@ -236,10 +237,11 @@ func componentTypeName(c Component) string {
 	case *Daylight:
 		return string(ComponentDaylight)
 	case *GeneralComponent:
-		return c.Token
-	default:
-		return fmt.Sprintf("%T", c)
+		if c.Token != "" {
+			return c.Token
+		}
 	}
+	return fmt.Sprintf("%T", c)
 }
 
 // RemovePropertyByFunc removes from the component all properties that has a particular property type and the function
