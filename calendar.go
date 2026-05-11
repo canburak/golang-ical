@@ -466,11 +466,9 @@ func (cal *Calendar) SerializeTo(w io.Writer, ops ...any) error {
 // Serialize does not call Validate; callers that want RFC enforcement must
 // invoke Validate explicitly before serialising.
 func (cal *Calendar) Validate() error {
-	var errs []error
+	errs := make([]error, 0, len(cal.Components))
 	for _, c := range cal.Components {
-		if err := validateComponent(c); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateComponent(c))
 	}
 	return errors.Join(errs...)
 }

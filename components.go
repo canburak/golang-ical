@@ -181,6 +181,9 @@ func validateComponent(c Component) error {
 	if c == nil {
 		return nil
 	}
+	// Typed-nil pointers (e.g. (*VEvent)(nil)) compare != nil through an
+	// interface; reflect is how we detect them without panicking on the
+	// method calls below.
 	if v := reflect.ValueOf(c); v.Kind() == reflect.Ptr && v.IsNil() {
 		return nil
 	}
@@ -200,9 +203,7 @@ func validateComponent(c Component) error {
 		}
 	}
 	for _, sub := range c.SubComponents() {
-		if err := validateComponent(sub); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateComponent(sub))
 	}
 	return errors.Join(errs...)
 }
@@ -230,6 +231,7 @@ func componentTypeName(c Component) string {
 		if c.Token != "" {
 			return c.Token
 		}
+		// empty Token falls through to the %T default below
 	}
 	return fmt.Sprintf("%T", c)
 }
