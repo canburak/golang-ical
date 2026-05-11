@@ -96,9 +96,6 @@ func TestCalendarValidate_NilAndTypedNilComponents(t *testing.T) {
 	}
 }
 
-// TestCalendarValidate_RecursesIntoSubcomponents verifies that a VEVENT
-// nested inside another VEVENT is also checked. Required() flags DTSTAMP on
-// every *VEvent, so the inner one's miss must surface.
 func TestCalendarValidate_RecursesIntoSubcomponents(t *testing.T) {
 	cal := NewCalendar()
 	outer := NewEvent("outer")
@@ -122,10 +119,6 @@ func TestCalendarValidate_RecursesIntoSubcomponents(t *testing.T) {
 	}
 }
 
-// TestCalendarValidate_GeneralComponent confirms that components the package
-// doesn't model explicitly (parsed as *GeneralComponent) are walked rather
-// than silently skipped. Required() returns false for them today, so the
-// expectation is "no error, no panic."
 func TestCalendarValidate_GeneralComponent(t *testing.T) {
 	cal := NewCalendar()
 	cal.Components = append(cal.Components, &GeneralComponent{Token: "X-VENDOR"})

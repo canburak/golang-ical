@@ -171,15 +171,12 @@ func (cb *ComponentBase) RemovePropertyByValue(removeProp ComponentProperty, val
 }
 
 // Validate reports the RFC 5545 required properties that are missing from c
-// and its subcomponents, as determined by ComponentProperty.Required. c must
-// be the concrete Component that embeds cb so Required's type switch can fire.
+// and its subcomponents, as determined by ComponentProperty.Required.
 func (cb *ComponentBase) Validate(c Component) error {
 	return validateComponent(c)
 }
 
-// validateComponent walks c and its subcomponents using only the Component
-// interface, so it covers every implementer — including *GeneralComponent —
-// without a type-switch tax on the property side.
+// validateComponent walks c and its subcomponents via the Component interface.
 func validateComponent(c Component) error {
 	if c == nil {
 		return nil
