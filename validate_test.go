@@ -28,11 +28,8 @@ func TestCalendarValidate_VEventOnlyUID(t *testing.T) {
 	}
 }
 
-// TestCalendarValidate_VEventUIDDtstamp documents what Required() does today,
-// not what RFC 5545 §3.6.1 prescribes. Required() at calendar.go gates DTSTART
-// on whether the *VEvent itself* carries a METHOD property, but RFC 5545 ties
-// that condition to the enclosing Calendar's METHOD. Per the task brief we
-// pin the test to the implementation and leave the fix to a separate change.
+// Pins current Required() behaviour: DTSTART is required when the VEvent
+// itself has no METHOD (not the enclosing Calendar, as RFC 5545 §3.6.1 says).
 func TestCalendarValidate_VEventUIDDtstamp(t *testing.T) {
 	cal := NewCalendar()
 	evt := NewEvent("evt-uid-dtstamp")

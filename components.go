@@ -178,9 +178,8 @@ func (cb *ComponentBase) Validate(c Component) error {
 }
 
 // validateComponent walks c and its subcomponents using only the Component
-// interface, so it works for every implementer — including *GeneralComponent
-// and any third-party type — without a type-switch tax on the property side.
-// Nil interface values and typed-nil pointers are skipped silently.
+// interface, so it covers every implementer — including *GeneralComponent —
+// without a type-switch tax on the property side.
 func validateComponent(c Component) error {
 	if c == nil {
 		return nil
